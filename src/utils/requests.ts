@@ -422,6 +422,10 @@ export function getJsonWithTimeout(
         .finally(() => clearTimeout(timer));
 }
 
+// Anything below this is not a playable video. The server enforces its own
+// minimum (250 KB); this only catches the obviously broken cases early.
+const MIN_UPLOAD_BYTES = 1024;
+
 async function uploadFileMultipart(
     url: string,
     params: { [key: string]: any },
@@ -450,6 +454,19 @@ async function uploadFileMultipart(
 
     if (!file.exists) {
         throw new Error(`uploadFileMultipart: file not found at ${filePart.uri}`);
+    }
+
+    // A file can exist and still be empty or truncated -- an interrupted
+    // transcode leaves such a stub behind. Uploading it wastes the user's
+    // bandwidth and the server rejects it anyway, so fail here with a message
+    // that says what actually happened.
+    const fileSize = file.size ?? 0;
+
+    if (fileSize < MIN_UPLOAD_BYTES) {
+        throw new Error(
+            `The processed file is only ${fileSize} bytes and looks incomplete. ` +
+                'Please try again.',
+        );
     }
 
     const result = await file.upload(url, {
