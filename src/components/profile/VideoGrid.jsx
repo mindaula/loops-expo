@@ -1,8 +1,13 @@
 import { StackText, YStack } from '@/components/ui/Stack';
+import { mediaSource } from '@/utils/mediaSource';
 import { prettyCount } from '@/utils/ui';
 import { Ionicons } from '@expo/vector-icons';
+// expo-image, not react-native's Image: thumbnails are served by the
+// authenticated media route and mediaSource() attaches an Authorization
+// header, which needs an image component that actually forwards it.
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 export default function VideoGrid({ video, onPress }) {
     return (
@@ -20,13 +25,13 @@ export default function VideoGrid({ video, onPress }) {
                     </View>
                 ) : (
                     <Image
-                        source={{ uri: video.media.thumbnail }}
+                        source={mediaSource(video.media.thumbnail)}
                         style={{
                             width: '100%',
                             height: '100%',
                             backgroundColor: '#F1F1F2',
                         }}
-                        resizeMode="cover"
+                        contentFit="cover"
                     />
                 )}
 
