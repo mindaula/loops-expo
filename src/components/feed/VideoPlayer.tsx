@@ -1,22 +1,30 @@
 import Avatar from '@/components/Avatar';
 import LinkifiedCaption from '@/components/feed/LinkifiedCaption';
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-    Dimensions,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+
+/** Seconds as m:ss, for the labels either side of the seek bar. */
+function formatTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+        return '0:00';
+    }
+
+    const total = Math.floor(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 export default function VideoPlayer({
     item,
@@ -35,6 +43,7 @@ export default function VideoPlayer({
     navigation,
     onNavigate,
     tabBarHeight = 60,
+    itemHeight,
 }) {
     const [isLiked, setIsLiked] = useState(item.has_liked);
     const [isBookmarked, setIsBookmarked] = useState(item.has_bookmarked);
@@ -49,9 +58,21 @@ export default function VideoPlayer({
 
     const playbackRate = videoPlaybackRates[item.id] || 1.0;
 
-    const player = useVideoPlayer(item.media.src_url, (player) => {
+    const player = useVideoPlayer(mediaSource(item.media.src_url), (player) => {
         player.loop = true;
         player.playbackRate = playbackRate;
+
+        // Without limits the player pulls the whole file as fast as the link
+        // allows, for every mounted item at once. Measured on a live feed that
+        // was up to eight complete downloads in parallel -- 44 MB a minute for
+        // a library of 112 MB. A short read-ahead is all a clip this length
+        // needs, and it leaves the connection to the video actually on screen.
+        player.bufferOptions = {
+            preferredForwardBufferDuration: 6,
+            maxBufferBytes: 4 * 1024 * 1024,
+            minBufferForPlayback: 1,
+            prioritizeTimeOverSizeThreshold: true,
+        };
     });
 
     useEffect(() => {
@@ -125,6 +146,87 @@ export default function VideoPlayer({
         onBookmark(item.id, !isBookmarked);
     };
 
+    // Playback progress for the scrub bar. `timeUpdate` fires on the interval
+    // set above; while the user drags we ignore it so the thumb does not fight
+    // the finger.
+    // No initial value: until the first event arrives we fall back to the
+    // player's own position, otherwise the bar would open at zero.
+    const progress = useEvent(player, 'timeUpdate', null) as {
+        currentTime?: number;
+    } | null;
+    // Progress events are off unless the scrub bar is actually on screen.
+    // They default to off in expo-video for good reason: every tick re-renders
+    // this component, and with several players mounted at once that was enough
+    // extra work to make busy videos stutter.
+    useEffect(() => {
+        if (!player) return;
+
+        try {
+            player.timeUpdateEventInterval = showControls ? 0.25 : 0;
+        } catch (error) {
+            console.log('timeUpdateEventInterval error:', error);
+        }
+    }, [player, showControls]);
+
+    const [barWidth, setBarWidth] = useState(0);
+    const [scrubTime, setScrubTime] = useState<number | null>(null);
+
+    const duration = player?.duration ?? 0;
+    const currentTime = scrubTime ?? progress?.currentTime ?? player?.currentTime ?? 0;
+    const fraction = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
+
+    const seekToFraction = useCallback(
+        (f: number) => {
+            if (!player || !isMountedRef.current) return;
+
+            const total = player.duration ?? 0;
+            if (total <= 0) return;
+
+            const target = Math.min(total, Math.max(0, f * total));
+
+            // Seek on every move, not only on release: paused seeking is cheap
+            // and the frame under the finger is the whole point of a scrub bar.
+            setScrubTime(target);
+
+            try {
+                player.currentTime = target;
+            } catch (error) {
+                console.log('Seek error:', error);
+            }
+        },
+        [player],
+    );
+
+    // runOnJS keeps these callbacks on the JS thread: they touch the player
+    // object and React state, neither of which is safe from a worklet.
+    const scrubGesture = React.useMemo(() => {
+        // activeOffsetX claims the gesture as soon as the finger moves
+        // sideways, and failOffsetY hands it back for vertical swipes.
+        // Without this the surrounding vertical list wins the gesture and
+        // the drag never reaches these handlers at all.
+        const pan = Gesture.Pan()
+            .runOnJS(true)
+            .minDistance(0)
+            .activeOffsetX([-4, 4])
+            .failOffsetY([-24, 24])
+            .onBegin((e) => {
+                if (barWidth > 0) seekToFraction(e.x / barWidth);
+            })
+            .onUpdate((e) => {
+                if (barWidth > 0) seekToFraction(e.x / barWidth);
+            });
+
+        // Tapping anywhere on the bar jumps there, which is both expected
+        // and a fallback if the pan is ever lost to another recogniser.
+        const tap = Gesture.Tap()
+            .runOnJS(true)
+            .onEnd((e) => {
+                if (barWidth > 0) seekToFraction(e.x / barWidth);
+            });
+
+        return Gesture.Race(pan, tap);
+    }, [barWidth, seekToFraction]);
+
     const togglePlayPause = () => {
         if (!player || !isMountedRef.current) return;
 
@@ -135,6 +237,8 @@ export default function VideoPlayer({
                 player.pause();
                 setIsPlaying(false);
             } else {
+                // Release the held scrub position; progress events take over.
+                setScrubTime(null);
                 player.play();
                 setIsPlaying(true);
             }
@@ -143,30 +247,42 @@ export default function VideoPlayer({
         }
     };
 
+    // One tap pauses and reveals the controls; the next resumes and hides them.
+    // Previously a tap only revealed the overlay, so pausing took a second tap
+    // on the button and the overlay was gone again after three seconds.
     const handleScreenPress = () => {
         if (!isMountedRef.current) {
             return;
         }
-
-        const newShowControls = !showControls;
-        setShowControls(newShowControls);
 
         if (controlsTimeoutRef.current) {
             clearTimeout(controlsTimeoutRef.current);
             controlsTimeoutRef.current = null;
         }
 
-        if (newShowControls) {
-            controlsTimeoutRef.current = setTimeout(() => {
-                if (isMountedRef.current) {
-                    setShowControls(false);
-                    manualControlRef.current = false;
-                }
-            }, 3000);
-        } else {
+        const wasPlaying = isPlaying;
+
+        togglePlayPause();
+        setShowControls(wasPlaying);
+
+        // Only fade the controls out again while the video is running. Paused
+        // means the user is scrubbing, and the bar must stay under the finger.
+        if (!wasPlaying) {
             manualControlRef.current = false;
         }
     };
+
+    // A tap gesture rather than a Pressable: the overlay sits on top of a
+    // native video surface, which swallowed the touch before it ever reached
+    // React Native's own handler.
+    const tapGesture = React.useMemo(
+        () =>
+            Gesture.Tap()
+                .runOnJS(true)
+                .onEnd(() => handleScreenPress()),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isPlaying, showControls],
+    );
 
     useEffect(() => {
         return () => {
@@ -185,7 +301,7 @@ export default function VideoPlayer({
 
     if (item.is_sensitive && !playSensitive) {
         return (
-            <View style={styles.videoContainer}>
+            <View style={[styles.videoContainer, { height: itemHeight || SCREEN_HEIGHT }]}>
                 <View
                     style={styles.sensitiveOverlay}
                     accessible={true}
@@ -218,7 +334,7 @@ export default function VideoPlayer({
     }
 
     return (
-        <View style={styles.videoContainer}>
+        <View style={[styles.videoContainer, { height: itemHeight || SCREEN_HEIGHT }]}>
             <View style={styles.videoWrapper}>
                 <VideoView
                     style={styles.video}
@@ -231,23 +347,20 @@ export default function VideoPlayer({
                     contentFit="contain"
                 />
 
-                <Pressable
-                    style={StyleSheet.absoluteFill}
-                    onPress={() => handleScreenPress()}
-                    disabled={showControls}
-                    accessible={true}
-                    accessibilityLabel="Video"
-                    accessibilityHint="Tap to show playback controls"
-                    accessibilityRole="button"
-                />
+                <GestureDetector gesture={tapGesture}>
+                    <View
+                        style={StyleSheet.absoluteFill}
+                        accessible={true}
+                        accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'}
+                        accessibilityHint="Tap to pause and show the seek bar"
+                        accessibilityRole="button"
+                    />
+                </GestureDetector>
 
                 {showControls && (
                     <View style={styles.controlsOverlay} pointerEvents="box-none">
                         <TouchableOpacity
-                            onPress={(e) => {
-                                e?.stopPropagation?.();
-                                togglePlayPause();
-                            }}
+                            onPress={togglePlayPause}
                             style={styles.playButton}
                             activeOpacity={0.7}
                             accessible={true}
@@ -256,6 +369,41 @@ export default function VideoPlayer({
                             accessibilityState={{ selected: isPlaying }}>
                             <Ionicons name={isPlaying ? 'pause' : 'play'} size={60} color="white" />
                         </TouchableOpacity>
+
+                        <View
+                            style={[
+                                styles.seekBarArea,
+                                { bottom: bottomInset + tabBarHeight + 64 },
+                            ]}>
+                            <Text style={styles.seekTime}>{formatTime(currentTime)}</Text>
+
+                            <GestureDetector gesture={scrubGesture}>
+                                <View
+                                    style={styles.seekTouchArea}
+                                    onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+                                    accessible={true}
+                                    accessibilityLabel="Seek bar"
+                                    accessibilityHint="Drag to change the playback position"
+                                    accessibilityRole="adjustable">
+                                    <View style={styles.seekTrack}>
+                                        <View
+                                            style={[
+                                                styles.seekFill,
+                                                { width: `${fraction * 100}%` },
+                                            ]}
+                                        />
+                                        <View
+                                            style={[
+                                                styles.seekThumb,
+                                                { left: `${fraction * 100}%` },
+                                            ]}
+                                        />
+                                    </View>
+                                </View>
+                            </GestureDetector>
+
+                            <Text style={styles.seekTime}>{formatTime(duration)}</Text>
+                        </View>
                     </View>
                 )}
             </View>
@@ -429,7 +577,6 @@ export default function VideoPlayer({
 const styles = StyleSheet.create({
     videoContainer: {
         width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT,
         position: 'relative',
     },
     videoWrapper: {
@@ -440,6 +587,47 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         backgroundColor: '#000',
+    },
+    seekBarArea: {
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    seekTime: {
+        color: '#fff',
+        fontSize: 12,
+        fontVariant: ['tabular-nums'],
+        minWidth: 38,
+        textAlign: 'center',
+    },
+    // Generous vertical padding: the visible track is thin, but the area that
+    // accepts the drag must be comfortable to hit.
+    seekTouchArea: {
+        flex: 1,
+        paddingVertical: 14,
+        justifyContent: 'center',
+    },
+    seekTrack: {
+        height: 3,
+        borderRadius: 2,
+        backgroundColor: 'rgba(255,255,255,0.35)',
+    },
+    seekFill: {
+        height: 3,
+        borderRadius: 2,
+        backgroundColor: '#fff',
+    },
+    seekThumb: {
+        position: 'absolute',
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#fff',
+        marginLeft: -6,
+        top: -4.5,
     },
     controlsOverlay: {
         ...StyleSheet.absoluteFillObject,

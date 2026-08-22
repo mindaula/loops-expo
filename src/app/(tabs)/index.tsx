@@ -391,7 +391,6 @@ export default function LoopsFeed({ navigation }) {
                     data={videos}
                     renderItem={renderItem}
                     keyExtractor={(item, index) => `${item.id}-${index}`}
-                    pagingEnabled={!showEmptyState}
                     scrollEnabled={!showEmptyState}
                     showsVerticalScrollIndicator={false}
                     snapToInterval={feedHeight}
@@ -408,7 +407,11 @@ export default function LoopsFeed({ navigation }) {
                     })}
                     removeClippedSubviews={false}
                     maxToRenderPerBatch={1}
-                    windowSize={3}
+                    // Each mounted item creates a player that starts buffering
+                    // straight away, so this number is also the number of
+                    // videos competing for the connection. Two keeps the next
+                    // clip ready without three or more downloads in flight.
+                    windowSize={2}
                     initialNumToRender={1}
                     updateCellsBatchingPeriod={100}
                     refreshControl={
