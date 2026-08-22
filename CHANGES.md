@@ -1,6 +1,7 @@
 # Changes in this branch
 
-Six commits on top of `upstream/main`. They make the client work against a
+Seven commits on top of `upstream/main`. Two of them fix defects that stop a
+fresh checkout from building at all. The rest make the client work against a
 server that serves video behind an authenticated route, fix three problems in
 the feed player, stop a class of broken upload, and extend the share sheet.
 
@@ -19,6 +20,27 @@ in the tree, so the screen cannot resolve its imports. This adds them.
 
 Worth checking against your own copy — it looks like they were meant to be part
 of an earlier commit and were never added.
+
+## 1b. Sync package-lock.json with package.json
+
+`836d606` · 1 file
+
+`npm ci` refuses to install:
+
+```
+npm ci can only install packages when your package.json and
+package-lock.json are in sync.
+Missing: @react-native/metro-config@0.85.3 from lock file
+Missing: @react-native/metro-babel-transformer@0.85.3 from lock file
+Missing: @react-native/babel-preset@0.85.3 from lock file
+Missing: @react-native/babel-plugin-codegen@0.85.3 from lock file
+```
+
+A clean checkout cannot be installed, and an EAS build fails in the
+install-dependencies phase before it reaches anything else.
+
+Regenerated with `npm install`. Only the lock file changes; `package.json` is
+untouched.
 
 ## 2. Send the access token with media requests
 
@@ -119,6 +141,7 @@ removed once the gallery has its own.
 
 ## Note on dependencies
 
-`package.json` is untouched. The features here rely on `expo-clipboard`,
+`package.json` is untouched; only the lock file is regenerated, and only to
+match it. The features here rely on `expo-clipboard`,
 `expo-file-system`, `expo-media-library`, `expo-haptics`, `expo-image` and
 `react-native-gesture-handler`, all of which are already dependencies.
