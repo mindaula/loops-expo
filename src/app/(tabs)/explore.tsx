@@ -1,4 +1,5 @@
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { XStack } from '@/components/ui/Stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/utils/authStore';
@@ -308,7 +309,7 @@ export default function ExploreScreen() {
                 }>
                 <View style={tw`relative`}>
                     <Image
-                        source={{ uri: item.media.thumbnail }}
+                        source={mediaSource(item.media.thumbnail)}
                         style={[
                             tw`rounded-lg bg-gray-900`,
                             {

@@ -1,4 +1,5 @@
 import PlaylistIcon from '@/components/icons/PlaylistIcon';
+import { mediaSource } from '@/utils/mediaSource';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback } from 'react';
@@ -35,7 +36,7 @@ const VideoRow = memo(function VideoRow({ video, index, isCurrent, onPress }) {
             <View
                 style={tw`w-10 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-neutral-800 ml-1`}>
                 {thumb ? (
-                    <Image source={{ uri: thumb }} style={tw`w-full h-full`} resizeMode="cover" />
+                    <Image source={mediaSource(thumb)} style={tw`w-full h-full`} resizeMode="cover" />
                 ) : (
                     <View style={tw`flex-1 items-center justify-center`}>
                         <Ionicons name="play" size={16} color={placeholderColor} />

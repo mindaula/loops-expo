@@ -1,4 +1,5 @@
 import KlipyMedia from '@/components/feed/KlipyMedia';
+import { mediaSource } from '@/utils/mediaSource';
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
 import { StackText } from '@/components/ui/Stack';
 import type { DmOptimisticMessage, DmParticipant } from '@/types/dm';
@@ -74,7 +75,7 @@ export const MessageBubble = ({
                         ]}>
                         {thumbnail ? (
                             <Image
-                                source={{ uri: thumbnail }}
+                                source={mediaSource(thumbnail)}
                                 style={tw`absolute inset-0 w-full h-full`}
                                 resizeMode="cover"
                             />

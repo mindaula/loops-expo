@@ -1,4 +1,5 @@
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventListener } from 'expo';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,7 +37,7 @@ export default function DuetPreviewScreen() {
     const [originalVideoReady, setOriginalVideoReady] = useState(false);
     const [newVideoReady, setNewVideoReady] = useState(false);
 
-    const originalPlayer = useVideoPlayer(originalVideoUri, (player) => {
+    const originalPlayer = useVideoPlayer(mediaSource(originalVideoUri), (player) => {
         player.loop = false;
         player.volume = 0.5;
     });

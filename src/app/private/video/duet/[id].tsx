@@ -1,4 +1,5 @@
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
@@ -64,7 +65,7 @@ export default function DuetCameraScreen() {
     const pausedDuration = useRef<number>(0);
     const lastPauseTime = useRef<number>(0);
 
-    const player = useVideoPlayer(duetVideoUri, (player) => {
+    const player = useVideoPlayer(mediaSource(duetVideoUri), (player) => {
         player.loop = false;
         player.volume = 1.0;
     });

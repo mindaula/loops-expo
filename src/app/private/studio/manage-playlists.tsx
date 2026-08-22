@@ -1,4 +1,5 @@
 import { useTheme } from '@/contexts/ThemeContext'
+import { mediaSource } from '@/utils/mediaSource';
 import {
     deletePlaylist,
     fetchPlaylistDetails,
@@ -60,7 +61,7 @@ function VideoRow({ item, action }) {
     <View style={tw`flex-row items-center px-4 py-3`}>
       <View style={tw`w-14 h-20 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800`}>
         {item.media?.thumbnail ? (
-          <Image source={{ uri: item.media.thumbnail }} style={tw`w-full h-full`} />
+          <Image source={mediaSource(item.media.thumbnail)} style={tw`w-full h-full`} />
         ) : (
           <View style={tw`w-full h-full items-center justify-center`}>
             <Ionicons

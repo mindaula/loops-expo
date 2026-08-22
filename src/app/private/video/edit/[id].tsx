@@ -7,6 +7,7 @@ import {
     fetchVideo,
     updateVideoEdit,
 } from '@/utils/requests';
+import { mediaSource } from '@/utils/mediaSource';
 import { prettyCount } from '@/utils/ui';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -127,11 +128,11 @@ const VISIBILITY = [
     },
     {
         name: 'Local',
-        title: 'Only people on loops.video can view',
+        title: `Only people on  can view`,
         icon: 'map-outline',
         id: 2,
         disabled: true,
-        description: 'Visible only to people on loops.video',
+        description: `Visible only to people on `,
     },
     {
         name: 'Followers',
@@ -211,7 +212,7 @@ export default function EditScreen() {
 
     const queryClient = useQueryClient();
 
-    const player = useVideoPlayer(video?.media?.src_url || '', (player) => {});
+    const player = useVideoPlayer(mediaSource(video?.media?.src_url), (player) => {});
 
     useEffect(() => {
         if (video) {

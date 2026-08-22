@@ -1,4 +1,5 @@
 import { useTheme } from '@/contexts/ThemeContext';
+import { mediaSource } from '@/utils/mediaSource';
 import { fetchPlaylistLimits, fetchStudioSummary } from '@/utils/requests';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -237,7 +238,7 @@ function PostsCard({
                             style={tw`w-24 h-40 rounded-xl overflow-hidden bg-gray-200 dark:bg-zinc-800`}>
                             {post.media?.thumbnail ? (
                                 <Image
-                                    source={{ uri: post.media.thumbnail }}
+                                    source={mediaSource(post.media.thumbnail)}
                                     style={tw`w-full h-full`}
                                     contentFit="cover"
                                 />
@@ -319,8 +320,8 @@ export default function StudioScreen() {
 
     const { data: playlistLimits } = useQuery({
         queryKey: ['studio', 'playlistLimits'],
-        queryFn: () => fetchPlaylistLimits()
-    })
+        queryFn: () => fetchPlaylistLimits(),
+    });
 
     const followers = data?.followers.total ?? 0;
     const followerLabel = followers === 1 ? 'Net follower' : 'Net followers';
@@ -446,7 +447,8 @@ export default function StudioScreen() {
                                 <View style={tw`flex-row items-center mr-4`}>
                                     <Text
                                         style={tw`ml-1 text-base font-bold text-gray-700 dark:text-gray-300`}>
-                                        {  playlistLimits?.max_limit - playlistLimits?.slots_available}
+                                        {playlistLimits?.max_limit -
+                                            playlistLimits?.slots_available}
                                     </Text>
                                     <Text
                                         style={tw`ml-1 text-base text-gray-400 dark:text-gray-500`}>

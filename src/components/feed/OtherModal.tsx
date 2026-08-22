@@ -95,7 +95,7 @@ export default function OtherModal({
 
     const handleDuet = () => {
         onClose();
-        router.push(`/private/video/duet/${item.id}?duetVideoUri=${item.media.src_url}`);
+        router.push(`/private/video/duet/${item.id}?duetVideoUri=${encodeURIComponent(item.media.src_url)}`);
     };
 
     if (showReport) {

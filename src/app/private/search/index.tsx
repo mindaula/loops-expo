@@ -1,4 +1,5 @@
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuthStore } from '@/utils/authStore';
 import { followAccount, searchContent, unfollowAccount } from '@/utils/requests';
@@ -252,7 +253,7 @@ export default function SearchScreen() {
             activeOpacity={0.9}>
             <View style={tw`relative`}>
                 <Image
-                    source={{ uri: item.media.thumbnail }}
+                    source={mediaSource(item.media.thumbnail)}
                     style={[
                         tw`w-full rounded-lg bg-gray-200 dark:bg-gray-700`,
                         { aspectRatio: 3 / 4 },

@@ -124,11 +124,11 @@ const VISIBILITY = [
     },
     {
         name: 'Local',
-        title: 'Only people on loops.video can view',
+        title: `Only people on  can view`,
         icon: 'map-outline',
         id: 2,
         disabled: true,
-        description: 'Visible only to people on loops.video',
+        description: `Visible only to people on `,
     },
     {
         name: 'Followers',

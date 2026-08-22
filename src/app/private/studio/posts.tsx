@@ -1,4 +1,5 @@
 import { PressableHaptics } from '@/components/ui/PressableHaptics';
+import { mediaSource } from '@/utils/mediaSource';
 import { StackText } from '@/components/ui/Stack';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fetchStudioPosts } from '@/utils/requests';
@@ -157,7 +158,7 @@ const PostRow = memo(function PostRow({
             ]}>
             <View>
                 <Image
-                    source={post.media?.thumbnail}
+                    source={mediaSource(post.media?.thumbnail)}
                     style={[
                         tw`rounded-lg border border-gray-300 dark:border-gray-800 bg-gray-200 dark:bg-gray-800`,
                         { width: THUMB_W, height: THUMB_H },
